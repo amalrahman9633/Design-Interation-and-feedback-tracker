@@ -1,11 +1,13 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { BuildBadge } from '../components/BuildStatus';
 import { ChevronLeftIcon, CompareIcon, PlusIcon } from '../components/icons';
 import { VersionDialog, type VersionFormValues } from '../components/VersionDialog';
-import { isLiveUrl, timeAgo } from '../lib/format';
+import { isDrifting, timeAgo } from '../lib/format';
 import { repo } from '../store/repo';
 import type { Version } from '../store/types';
+import { requestBackfill, syncProject, useCompanionStatus } from '../sync/companion';
 
 export function ProjectPage() {
   const { projectId = '' } = useParams();
@@ -16,6 +18,8 @@ export function ProjectPage() {
   const counts = useLiveQuery(() => repo.countComments(ids ? ids.split(',') : []), [ids]) ?? {};
   const [saving, setSaving] = useState(false);
   const [renaming, setRenaming] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
+  const companion = useCompanionStatus(project?.source?.endpoint);
 
   if (project === undefined) {
     return (
@@ -45,11 +49,21 @@ export function ProjectPage() {
     navigate('/');
   }
 
+  async function backfill() {
+    if (!project?.source) return;
+    setBackfilling(true);
+    await requestBackfill(project.source.endpoint, project.source.repo).catch(() => {});
+    await syncProject(project).catch(() => {});
+    setTimeout(() => setBackfilling(false), 1500);
+  }
+
   const meta = (v: Version) => {
     const c = counts[v.id];
     return (
       <span className="pill-meta">
-        {isLiveUrl(v.url) && !v.hasSnapshot && <span className="badge is-live">live</span>}
+        {isDrifting(v) && !v.hasSnapshot && <span className="badge is-live">live</span>}
+        <BuildBadge status={v.status} />
+        {v.commit && v.source !== 'manual' && <code className="muted">{v.commit}</code>}
         {c && c.open > 0 && <span className="count">{c.open}</span>}
       </span>
     );
@@ -88,17 +102,38 @@ export function ProjectPage() {
           {latest && <> · updated {timeAgo(latest.createdAt)}</>}
           {project.archived && <> · archived</>}
         </p>
+        {project.source && (
+          <p className="page-sub row" style={{ justifyContent: 'center', marginTop: -32, fontSize: 13 }}>
+            <span className={`status-dot is-${companion}`} title={`Companion ${companion}`} />
+            {project.source.provider === 'local' ? 'Synced from git' : `Synced from ${project.source.provider === 'vercel' ? 'Vercel' : 'Netlify'}`}
+            {' · '}commits marked <code>{project.source.marker ?? '[v]'}</code>
+            {companion === 'offline' && <> · companion offline, run <code>organiser serve</code></>}
+          </p>
+        )}
 
         <div className="row" style={{ justifyContent: 'center', marginBottom: 28 }}>
-          <button className="btn btn-dark" onClick={() => setSaving(true)}>
+          <button className={`btn ${project.source ? '' : 'btn-dark'}`} onClick={() => setSaving(true)}>
             <PlusIcon size={14} /> Save new version
           </button>
+          {project.source && (
+            <button className="btn" onClick={backfill} disabled={backfilling || companion === 'offline'}>
+              {backfilling ? 'Checking…' : project.source.provider === 'local' ? 'Import older commits' : 'Refresh'}
+            </button>
+          )}
           {versions.length > 1 && (
             <Link className="btn" to={`/compare/${versions[1].id}/${versions[0].id}`}>
               <CompareIcon size={14} /> Compare
             </Link>
           )}
         </div>
+
+        {!latest && project.source && (
+          <p className="empty">
+            Waiting for the first commit with <code>{project.source.marker ?? '[v]'}</code> in its message, for example
+            <br />
+            <code>git commit -m "First pass {project.source.marker ?? '[v]'}"</code>
+          </p>
+        )}
 
         {latest && (
           <div className="stack">

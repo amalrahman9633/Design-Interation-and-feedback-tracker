@@ -1,5 +1,6 @@
-import { isLiveUrl, shortUrl, timeAgo } from '../lib/format';
+import { isDrifting, shortUrl, timeAgo } from '../lib/format';
 import type { Comment, Version } from '../store/types';
+import { BuildBadge } from './BuildStatus';
 import { contextLabel } from './CommentThread';
 import { CloseIcon, ExternalIcon } from './icons';
 
@@ -40,7 +41,8 @@ export function CommentPanel({ version, comments, filter, setFilter, activeId, o
               {timeAgo(version.createdAt)}
             </span>
             <span className="spacer" />
-            {isLiveUrl(version.url) && <span className="badge is-live">live URL</span>}
+            {isDrifting(version) && <span className="badge is-live">live URL</span>}
+            <BuildBadge status={version.status} />
             {sdkConnected && (
               <span className="badge" title="Prototype is running the Organiser SDK">
                 <span className="dot" style={{ color: 'var(--accent)' }} /> SDK
@@ -51,7 +53,14 @@ export function CommentPanel({ version, comments, filter, setFilter, activeId, o
           <a className="url row" href={version.url} target="_blank" rel="noreferrer" style={{ gap: 4 }}>
             {shortUrl(version.url)} <ExternalIcon size={12} />
           </a>
-          {version.commit && <div className="url">commit {version.commit}</div>}
+          {version.commit && (
+            <div className="url">
+              {version.source === 'vercel' ? 'Vercel deploy of ' : version.source === 'netlify' ? 'Netlify deploy of ' : 'commit '}
+              <code>{version.commit}</code>
+              {version.branch && <> on {version.branch}</>}
+              {version.author && <> · {version.author}</>}
+            </div>
+          )}
           <div className="row" style={{ marginTop: 8 }}>
             <span className="muted" style={{ fontSize: 12 }}>
               {version.hasSnapshot ? 'Snapshot saved' : 'No snapshot yet'}

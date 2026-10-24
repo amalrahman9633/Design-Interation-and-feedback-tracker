@@ -2,7 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronDownIcon, CompareIcon, HomeIcon, ImageIcon } from '../components/icons';
-import { isLiveUrl, timeAgo } from '../lib/format';
+import { isDrifting, timeAgo } from '../lib/format';
 import { repo } from '../store/repo';
 import type { Version } from '../store/types';
 
@@ -16,7 +16,7 @@ function Column({
   onChange: (id: string) => void;
 }) {
   const latestId = versions[0]?.id;
-  const drifted = isLiveUrl(version.url) && version.id !== latestId;
+  const drifted = isDrifting(version) && version.id !== latestId;
   const [snapshotFor, setSnapshotFor] = useState<Record<string, boolean>>({});
   const showSnapshot = version.hasSnapshot && (snapshotFor[version.id] ?? drifted);
   const snapshot = useLiveQuery(() => (showSnapshot ? repo.getSnapshot(version.id) : undefined), [version.id, showSnapshot]);
@@ -51,7 +51,11 @@ function Column({
         )}
       </div>
       <div className="stage">
-        {showSnapshot ? (
+        {version.status && version.status !== 'ready' ? (
+          <div className="build-state">
+            <p className="muted">{version.status === 'failed' ? 'This commit didn’t build.' : 'Building this commit…'}</p>
+          </div>
+        ) : showSnapshot ? (
           <div className="snapshot-view">{snapshot && <img src={snapshot.dataUrl} alt={`Snapshot of ${version.name}`} />}</div>
         ) : (
           <>

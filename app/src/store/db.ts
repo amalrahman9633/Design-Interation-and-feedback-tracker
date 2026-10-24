@@ -15,6 +15,16 @@ export class OrganiserDB extends Dexie {
       comments: 'id, versionId',
       snapshots: 'versionId',
     });
+    this.version(2)
+      .stores({ versions: 'id, projectId, [projectId+number], [projectId+externalId]' })
+      .upgrade((tx) =>
+        tx
+          .table('versions')
+          .toCollection()
+          .modify((v: Version) => {
+            v.source ??= 'manual';
+          }),
+      );
   }
 }
 

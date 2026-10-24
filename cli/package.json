@@ -1,0 +1,21 @@
+{
+  "name": "@organiser/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Turns marked git commits into Organiser versions: builds each commit and serves it at its own URL.",
+  "bin": {
+    "organiser": "./bin/organiser.js"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

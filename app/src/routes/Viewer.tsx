@@ -3,12 +3,13 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useBridge } from '../bridge/useBridge';
+import { BuildState } from '../components/BuildStatus';
 import { CommentLayer } from '../components/CommentLayer';
 import { CommentPanel, type Filter } from '../components/CommentPanel';
 import { ChevronLeftIcon } from '../components/icons';
 import { Toolbar } from '../components/Toolbar';
 import { VersionDialog, type VersionFormValues } from '../components/VersionDialog';
-import { isLiveUrl, timeAgo } from '../lib/format';
+import { isDrifting, timeAgo } from '../lib/format';
 import { repo } from '../store/repo';
 import type { Comment } from '../store/types';
 
@@ -40,7 +41,7 @@ export function Viewer() {
   const isLatest = versions[0]?.id === versionId;
   // An older version on a live (local) URL no longer shows its own code, so
   // open its snapshot by default when there is one.
-  const drifted = !!version && isLiveUrl(version.url) && !isLatest;
+  const drifted = !!version && isDrifting(version) && !isLatest;
 
   useEffect(() => {
     setActiveId(null);
@@ -144,21 +145,25 @@ export function Viewer() {
   }
 
   const openCount = comments.filter((c) => !c.resolved).length;
+  const notBuilt = !!version.status && version.status !== 'ready';
 
   return (
     <div className="viewer">
       <div className={`stage-wrap ${sdk && Object.keys(sdk.states).length ? 'has-states' : ''}`}>
         <div ref={stageRef} className={`stage ${commenting ? 'is-commenting' : ''}`}>
-          <iframe
-            key={version.id}
-            ref={iframeRef}
-            src={version.url}
-            title={`${project.name} ${version.name}`}
-            onLoad={bridge.onFrameLoad}
-            allow="clipboard-read; clipboard-write; fullscreen"
-            style={showSnapshot ? { visibility: 'hidden' } : undefined}
-          />
-          {showSnapshot ? (
+          {notBuilt && <BuildState version={version} source={project.source} />}
+          {!notBuilt && (
+            <iframe
+              key={version.id}
+              ref={iframeRef}
+              src={version.url}
+              title={`${project.name} ${version.name}`}
+              onLoad={bridge.onFrameLoad}
+              allow="clipboard-read; clipboard-write; fullscreen"
+              style={showSnapshot ? { visibility: 'hidden' } : undefined}
+            />
+          )}
+          {notBuilt ? null : showSnapshot ? (
             <div className="snapshot-view">
               {snapshot ? <img src={snapshot.dataUrl} alt={`Snapshot of ${version.name}`} /> : null}
               <div className="stage-banner">

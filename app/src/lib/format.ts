@@ -22,6 +22,11 @@ export function isLiveUrl(url: string): boolean {
   }
 }
 
+/** True for hand-saved versions on a local URL: what they show may have moved on. */
+export function isDrifting(version: { url: string; source?: string }): boolean {
+  return (version.source ?? 'manual') === 'manual' && isLiveUrl(version.url);
+}
+
 export function isValidUrl(url: string): boolean {
   try {
     const { protocol } = new URL(url);

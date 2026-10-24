@@ -1,7 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { BuildBadge } from '../components/BuildStatus';
 import { PlusIcon } from '../components/icons';
+import { ConnectRepoDialog } from '../components/ConnectRepoDialog';
 import { VersionDialog, type VersionFormValues } from '../components/VersionDialog';
 import { repo } from '../store/repo';
 import type { Project, Version } from '../store/types';
@@ -28,6 +30,7 @@ async function loadSummaries(): Promise<Summary[]> {
 export function Home() {
   const summaries = useLiveQuery(loadSummaries);
   const [dialog, setDialog] = useState<Partial<VersionFormValues> | null>(null);
+  const [connecting, setConnecting] = useState(false);
   const [message, setMessage] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -92,13 +95,17 @@ export function Home() {
             <Link key={s.project.id} to={`/p/${s.project.id}`} className="pill">
               {s.project.name}
               <span className="pill-meta">
-                {s.latest?.name}
+                {s.project.source ? <span className="badge">git</span> : s.latest?.name}
+                {s.latest && <BuildBadge status={s.latest.status} />}
                 {s.open > 0 && <span className="count">{s.open}</span>}
               </span>
             </Link>
           ))}
           <button className="pill is-dashed" onClick={() => setDialog({})}>
-            <PlusIcon size={14} style={{ marginRight: 6 }} /> New project
+            <PlusIcon size={14} style={{ marginRight: 6 }} /> New project from a URL
+          </button>
+          <button className="pill is-dashed" onClick={() => setConnecting(true)}>
+            <PlusIcon size={14} style={{ marginRight: 6 }} /> Connect a git repo
           </button>
         </div>
 
@@ -141,6 +148,7 @@ export function Home() {
         )}
       </div>
 
+      {connecting && <ConnectRepoDialog onClose={() => setConnecting(false)} />}
       {dialog && <VersionDialog mode="project" initial={dialog} onSubmit={create} onClose={() => setDialog(null)} />}
     </div>
   );

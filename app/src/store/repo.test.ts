@@ -1,6 +1,8 @@
+import Dexie from 'dexie';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { OrganiserDB } from './db';
 import { createRepo, type Repo } from './repo';
+import type { CompanionVersion } from './types';
 
 let repo: Repo;
 let n = 0;
@@ -49,5 +51,59 @@ describe('repo', () => {
     expect(await fresh.importAll(dump)).toEqual({ projects: 1, versions: 1 });
     expect((await fresh.listComments(version.id))[0].body).toBe('keep me');
     await expect(fresh.importAll({ hello: 'world' })).rejects.toThrow();
+  });
+});
+
+const commitEntry = (sha: string, date: string, patch: Partial<CompanionVersion> = {}): CompanionVersion => ({
+  sha,
+  shortSha: sha.slice(0, 7),
+  subject: `Commit ${sha.slice(0, 4)}`,
+  body: '',
+  author: 'Amal',
+  date,
+  branch: 'main',
+  status: 'ready',
+  provider: 'local',
+  url: `http://${sha.slice(0, 7)}.proto.localhost:5199/`,
+  ...patch,
+});
+
+describe('synced versions', () => {
+  it('adds new commits, refreshes status, keeps edits and numbers by commit date', async () => {
+    const project = await repo.createSyncedProject({
+      name: 'Proto',
+      source: { kind: 'git', endpoint: 'http://localhost:5199', repo: 'proto', provider: 'local' },
+    });
+    const newer = commitEntry('bbbbbbbbbb', '2026-10-24T12:00:00Z', { status: 'building' });
+    expect(await repo.upsertSyncedVersions(project.id, [newer])).toEqual({ added: 1, updated: 0 });
+
+    const [first] = await repo.listVersions(project.id);
+    await repo.updateVersion(first.id, { name: 'Renamed by me' });
+
+    // Backfill brings an older commit; the build of the newer one finishes.
+    const older = commitEntry('aaaaaaaaaa', '2026-10-20T09:00:00Z');
+    expect(await repo.upsertSyncedVersions(project.id, [{ ...newer, status: 'ready' }, older])).toEqual({ added: 1, updated: 1 });
+    expect(await repo.upsertSyncedVersions(project.id, [newer, older].map((e) => ({ ...e, status: 'ready' as const })))).toEqual({
+      added: 0,
+      updated: 0,
+    });
+
+    const versions = await repo.listVersions(project.id);
+    expect(versions.map((v) => [v.number, v.name, v.status, v.source])).toEqual([
+      [2, 'Renamed by me', 'ready', 'local'],
+      [1, 'Commit aaaa', 'ready', 'local'],
+    ]);
+    expect(await repo.findProjectBySource('http://localhost:5199', 'proto')).toMatchObject({ id: project.id });
+  });
+
+  it('upgrades a v1 database, marking existing versions as manual', async () => {
+    const name = `upgrade-${n++}`;
+    const old = new Dexie(name);
+    old.version(1).stores({ projects: 'id, updatedAt', versions: 'id, projectId, [projectId+number]', comments: 'id, versionId', snapshots: 'versionId' });
+    await old.table('versions').add({ id: 'v1', projectId: 'p1', number: 1, name: 'v1', note: '', url: 'http://localhost:3000', hasSnapshot: false, createdAt: 1 });
+    old.close();
+
+    const upgraded = createRepo(new OrganiserDB(name));
+    expect(await upgraded.getVersion('v1')).toMatchObject({ source: 'manual' });
   });
 });

@@ -5,6 +5,7 @@ import { Home } from './routes/Home';
 import { ProjectPage } from './routes/Project';
 import { Viewer } from './routes/Viewer';
 import { Compare } from './routes/Compare';
+import { CompanionSync } from './sync/companion';
 import './styles.css';
 
 const router = createBrowserRouter([
@@ -16,6 +17,7 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    <CompanionSync />
     <RouterProvider router={router} />
   </StrictMode>,
 );

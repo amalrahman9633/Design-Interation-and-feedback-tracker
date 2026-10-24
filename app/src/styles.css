@@ -775,3 +775,71 @@ a {
     height: auto;
   }
 }
+
+/* ---------- Git sync ---------- */
+
+.code {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: #f4f3ee;
+  font: 12.5px/1.5 ui-monospace, 'SF Mono', Menlo, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+code {
+  font: 12px ui-monospace, 'SF Mono', Menlo, monospace;
+}
+.badge.is-failed {
+  background: #f6e4df;
+  color: var(--danger);
+}
+.badge.is-building {
+  background: #eef3dc;
+  color: #5d7417;
+}
+.badge.is-building .dot {
+  animation: pulse 1.1s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+.build-state {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--surface);
+  overflow: auto;
+}
+.build-state > div {
+  width: 100%;
+  max-width: 560px;
+}
+.build-state h3 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 24px;
+  margin: 0 0 6px;
+}
+.build-state .code {
+  max-height: 340px;
+  overflow: auto;
+}
+.status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--faint);
+}
+.status-dot.is-online {
+  background: var(--accent);
+}
+.status-dot.is-offline {
+  background: var(--danger);
+}
