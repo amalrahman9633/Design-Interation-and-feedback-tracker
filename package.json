@@ -1,0 +1,12 @@
+{
+  "name": "design-organiser",
+  "private": true,
+  "workspaces": ["sdk", "app", "examples/*"],
+  "scripts": {
+    "dev": "npm run dev -w app",
+    "dev:demo": "npm run dev -w demo-prototype",
+    "build": "npm run build -w sdk && npm run build -w app",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  }
+}
