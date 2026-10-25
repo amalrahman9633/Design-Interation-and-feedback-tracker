@@ -9,7 +9,7 @@ import { hooksDir, repoRoot, scrubGitEnv } from './git.ts';
 import { buildUrl, home, port, serverLog } from './paths.ts';
 import { syncRemote } from './remote.ts';
 import { isServerRunning, spawnCli, startServer } from './server.ts';
-import { findRepoByPath, getRepo, readRepos, readVersions, saveConfig, saveRepo, type RepoEntry } from './store.ts';
+import { findRepoByPath, getRepo, readConfig, readRepos, readVersions, saveConfig, saveRepo, type RepoEntry } from './store.ts';
 
 const HELP = `organiser: turn marked git commits into Organiser versions
 
@@ -22,6 +22,9 @@ Usage (inside a prototype repo):
 
 Anywhere:
   organiser serve                    Serve builds + the API for the app (port ${port()}).
+  organiser allow [ORIGIN] [--remove]
+      Let a deployed Organiser (e.g. https://my-organiser.vercel.app) use this companion.
+      Without ORIGIN, lists the allowed origins.
   organiser connect vercel --project ID [--team ID] [--name N] [--token T]
   organiser connect netlify --site ID [--name N] [--token T]
       Use a hosted provider's deploy previews instead of local builds.
@@ -211,6 +214,25 @@ Older marked commits: organiser backfill`);
       }
       await startServer(p);
       console.log(`Organiser companion on http://localhost:${p} (builds at http://<sha>.<repo>.localhost:${p})`);
+      return;
+    }
+
+    case 'allow': {
+      const current = readConfig().allowedOrigins ?? [];
+      if (!positional[0]) {
+        console.log(current.length ? current.join('\n') : 'Only localhost may use the companion. Add one with `organiser allow https://…`.');
+        return;
+      }
+      let origin: string;
+      try {
+        origin = new URL(positional[0]).origin;
+      } catch {
+        fail(`"${positional[0]}" isn't a URL. Use the full address, e.g. https://my-organiser.vercel.app`);
+      }
+      if (!origin.startsWith('https://')) fail('only https:// origins can be allowed.');
+      const next = flags.remove ? current.filter((o) => o !== origin) : [...new Set([...current, origin])];
+      saveConfig({ allowedOrigins: next });
+      console.log(flags.remove ? `Removed ${origin}.` : `${origin} can now use this companion.`);
       return;
     }
 

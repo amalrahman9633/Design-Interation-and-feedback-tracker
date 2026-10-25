@@ -10,7 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildUrl, buildsRoot, logFile, repoBuilds, siteDir } from './paths.ts';
 import { syncRemote } from './remote.ts';
-import { getRepo, readRepos, readVersions, type VersionEntry } from './store.ts';
+import { getRepo, readConfig, readRepos, readVersions, type VersionEntry } from './store.ts';
 
 export const API_VERSION = 1;
 const REMOTE_POLL_MS = 30_000;
@@ -42,6 +42,14 @@ const MIME: Record<string, string> = {
 
 const BUILD_HOST = /^([0-9a-f]{7,40})\.([a-z0-9-]+)\.localhost$/;
 const LOCAL_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
+
+/**
+ * The app on localhost, plus origins added with `organiser allow` (e.g. the
+ * deployed app). Anything else could read repo paths and build logs.
+ */
+export function isAllowedOrigin(origin: string): boolean {
+  return LOCAL_ORIGIN.test(origin) || (readConfig().allowedOrigins ?? []).includes(origin);
+}
 
 /** Version entries as the app sees them, with local URLs filled in. Newest first. */
 export function apiVersions(repoId: string): VersionEntry[] {
@@ -129,12 +137,17 @@ export function startServer(port: number): Promise<void> {
     }
 
     const origin = req.headers.origin;
-    if (origin && LOCAL_ORIGIN.test(origin)) {
+    const allowed = !!origin && isAllowedOrigin(origin);
+    if (allowed) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Vary', 'Origin');
     }
     if (req.method === 'OPTIONS') {
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
+      // Chrome asks before a public site (the deployed app) may reach localhost.
+      if (allowed && req.headers['access-control-request-private-network'] === 'true') {
+        res.setHeader('Access-Control-Allow-Private-Network', 'true');
+      }
       return void res.writeHead(204).end();
     }
 

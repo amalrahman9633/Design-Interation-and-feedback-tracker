@@ -1,0 +1,25 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "app": {
+      "root": "app",
+      "framework": "vite",
+      "installCommand": "cd .. && npm ci",
+      "buildCommand": "cd .. && npm run build -w app",
+      "outputDirectory": "dist",
+      "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+    },
+    "demo": {
+      "root": "examples/demo-prototype",
+      "framework": "vite",
+      "installCommand": "cd ../.. && npm ci",
+      "buildCommand": "cd ../.. && npm run build -w demo-prototype -- --base=/demo/ --outDir dist/demo",
+      "outputDirectory": "dist"
+    }
+  },
+  "redirects": [{ "source": "/demo", "destination": "/demo/", "permanent": false }],
+  "rewrites": [
+    { "source": "/demo/(.*)", "destination": { "service": "demo" } },
+    { "source": "/(.*)", "destination": { "service": "app" } }
+  ]
+}

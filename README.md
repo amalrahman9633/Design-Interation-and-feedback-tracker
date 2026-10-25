@@ -62,6 +62,16 @@ organiser connect netlify --site <site-id> --name "Payment prototype" --token $N
 
 Tokens are stored in `~/.organiser/config.json` (owner-only), never in the browser. The companion checks for new marked deploys every 30 seconds. Vercel previews with Deployment Protection turned on will ask viewers to sign in inside the frame.
 
+## Deploying to Vercel
+
+`vercel.json` deploys one project with two static services: the Organiser app at `/` and the demo prototype at `/demo/`. Both build from the repo root so they use the local SDK. Test locally with `vercel dev -L`.
+
+The deployed app keeps its data in each visitor's browser, separate from your localhost data (use Export/Import to move it). To use git sync from the deployed app, allow its address on your machine. The companion still runs locally:
+
+```bash
+organiser allow https://your-project.vercel.app
+```
+
 ## Adding the SDK to a prototype (optional)
 
 Without the SDK comments are pinned to a spot on the screen. With it they stick to elements as you scroll and navigate, snapshots are captured, and you get the A/B/C variant + state toolbar.

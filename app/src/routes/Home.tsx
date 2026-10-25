@@ -8,6 +8,9 @@ import { VersionDialog, type VersionFormValues } from '../components/VersionDial
 import { repo } from '../store/repo';
 import type { Project, Version } from '../store/types';
 
+// Local dev serves the demo on its own port; deployments serve it at /demo/.
+const DEMO_URL = location.hostname === 'localhost' ? 'localhost:5174' : `${location.origin}/demo/`;
+
 interface Summary {
   project: Project;
   latest?: Version;
@@ -82,7 +85,7 @@ export function Home() {
             <button
               className="pill is-dashed"
               onClick={() =>
-                setDialog({ projectName: 'Demo prototype', url: 'localhost:5174', note: 'First pass' })
+                setDialog({ projectName: 'Demo prototype', url: DEMO_URL, note: 'First pass' })
               }
             >
               Try it with the demo prototype

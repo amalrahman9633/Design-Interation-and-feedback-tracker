@@ -43,6 +43,8 @@ export interface VersionEntry {
 export interface CompanionConfig {
   vercelToken?: string;
   netlifyToken?: string;
+  /** Extra app origins allowed to call the companion, e.g. a deployed https://….vercel.app. */
+  allowedOrigins?: string[];
 }
 
 function readJson<T>(file: string, fallback: T): T {
