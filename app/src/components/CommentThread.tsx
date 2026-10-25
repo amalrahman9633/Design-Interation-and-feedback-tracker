@@ -101,7 +101,17 @@ export function CommentThread({ comment, onClose }: { comment: Comment; onClose:
       </div>
       {comment.replies.map((r) => (
         <div key={r.id} className="thread-item">
-          <div className="thread-meta">You · {timeAgo(r.createdAt)}</div>
+          <div className="thread-meta">
+            You · {timeAgo(r.createdAt)}
+            <button
+              className="icon-btn item-action"
+              title="Delete reply"
+              aria-label="Delete reply"
+              onClick={() => confirm('Delete this reply?') && repo.deleteReply(comment.id, r.id)}
+            >
+              <TrashIcon size={13} />
+            </button>
+          </div>
           <div className="thread-body">{r.body}</div>
         </div>
       ))}

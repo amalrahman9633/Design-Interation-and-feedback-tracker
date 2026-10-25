@@ -8,7 +8,6 @@ import { CommentLayer } from '../components/CommentLayer';
 import { CommentPanel, type Filter } from '../components/CommentPanel';
 import { ChevronLeftIcon } from '../components/icons';
 import { Toolbar } from '../components/Toolbar';
-import { VersionDialog, type VersionFormValues } from '../components/VersionDialog';
 import { isDrifting, timeAgo } from '../lib/format';
 import { repo } from '../store/repo';
 import type { Comment } from '../store/types';
@@ -23,14 +22,17 @@ export function Viewer() {
   const projectId = version?.projectId;
   const project = useLiveQuery(() => (projectId ? repo.getProject(projectId) : undefined), [projectId]);
   const versions = useLiveQuery(() => (projectId ? repo.listVersions(projectId) : []), [projectId]) ?? [];
-  const comments = useLiveQuery(() => repo.listComments(versionId), [versionId]) ?? [];
+  // Tagged with its version so a stale result from the previous version is never mistaken for this one.
+  const loaded = useLiveQuery(async () => ({ versionId, comments: await repo.listComments(versionId) }), [versionId]);
+  const comments = loaded?.versionId === versionId ? loaded.comments : [];
 
   const [commenting, setCommenting] = useState(false);
-  const [panelOpen, setPanelOpen] = useState(() => innerWidth > 860);
+  // Opens by itself only for a version that already has feedback.
+  const [panelOpen, setPanelOpen] = useState(false);
+  const panelDecidedFor = useRef<string | null>(null);
   const [filter, setFilter] = useState<Filter>('open');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showSnapshot, setShowSnapshot] = useState(false);
-  const [saving, setSaving] = useState(false);
   const snapshot = useLiveQuery(() => (showSnapshot ? repo.getSnapshot(versionId) : undefined), [versionId, showSnapshot]);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -42,6 +44,12 @@ export function Viewer() {
   // An older version on a live (local) URL no longer shows its own code, so
   // open its snapshot by default when there is one.
   const drifted = !!version && isDrifting(version) && !isLatest;
+
+  useEffect(() => {
+    if (loaded?.versionId !== versionId || panelDecidedFor.current === versionId) return;
+    panelDecidedFor.current = versionId;
+    setPanelOpen(loaded.comments.length > 0 && innerWidth > 860);
+  }, [loaded, versionId]);
 
   useEffect(() => {
     setActiveId(null);
@@ -131,12 +139,6 @@ export function Viewer() {
     setTimeout(() => send({ type: 'scrollTo', anchorId: c.id }), 60);
   }
 
-  async function saveVersion(values: VersionFormValues) {
-    const created = await repo.createVersion({ projectId: version!.projectId, ...values });
-    setSaving(false);
-    navigate(`/v/${created.id}`);
-  }
-
   async function deleteVersion() {
     if (!confirm(`Delete ${version!.name} and its ${comments.length} comments?`)) return;
     const next = older ?? newer;
@@ -170,6 +172,9 @@ export function Viewer() {
                 <span className="badge is-dark">
                   Snapshot from {timeAgo(snapshot?.createdAt ?? version.createdAt)}
                   {drifted && ' · the live URL now shows newer code'}
+                  <button className="banner-action" onClick={() => setShowSnapshot(false)}>
+                    Show live
+                  </button>
                 </span>
               </div>
             </div>
@@ -201,6 +206,12 @@ export function Viewer() {
           setFilter={setFilter}
           activeId={activeId}
           onSelect={focusComment}
+          onDeleteComment={(c) => {
+            const replies = c.replies.length ? ` and its ${c.replies.length === 1 ? 'reply' : `${c.replies.length} replies`}` : '';
+            if (!confirm(`Delete comment ${c.number}${replies}?`)) return;
+            if (c.id === activeId) setActiveId(null);
+            void repo.deleteComment(c.id);
+          }}
           onDeleteVersion={deleteVersion}
           onClose={() => setPanelOpen(false)}
           sdkConnected={!!sdk}
@@ -221,26 +232,11 @@ export function Viewer() {
         panelOpen={panelOpen}
         togglePanel={() => setPanelOpen((v) => !v)}
         showSnapshot={showSnapshot}
-        toggleSnapshot={() => {
-          setShowSnapshot((v) => !v);
-          setCommenting(false);
-        }}
-        onSaveVersion={() => setSaving(true)}
         onCompare={() => {
           const other = older ?? newer;
           if (other) navigate(older ? `/compare/${older.id}/${version.id}` : `/compare/${version.id}/${other.id}`);
         }}
       />
-
-      {saving && (
-        <VersionDialog
-          mode="version"
-          nextNumber={(versions[0]?.number ?? 0) + 1}
-          initial={{ url: version.url }}
-          onSubmit={saveVersion}
-          onClose={() => setSaving(false)}
-        />
-      )}
     </div>
   );
 }

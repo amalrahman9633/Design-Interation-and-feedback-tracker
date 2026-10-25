@@ -29,6 +29,9 @@ describe('repo', () => {
     expect([a.number, b.number]).toEqual([1, 2]);
     await repo.updateComment(b.id, { resolved: true });
     await repo.addReply(a.id, 'Agreed');
+    await repo.addReply(a.id, 'Typo, ignore');
+    const typo = (await repo.listComments(version.id))[0].replies[1];
+    await repo.deleteReply(a.id, typo.id);
     expect(await repo.countComments([version.id])).toEqual({ [version.id]: { open: 1, total: 2 } });
     expect((await repo.listComments(version.id))[0].replies).toHaveLength(1);
   });

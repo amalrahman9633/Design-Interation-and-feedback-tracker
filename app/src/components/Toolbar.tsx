@@ -8,9 +8,7 @@ import {
   CommentIcon,
   CompareIcon,
   HomeIcon,
-  ImageIcon,
   PanelIcon,
-  PlusIcon,
   ResetIcon,
 } from './icons';
 
@@ -28,8 +26,6 @@ interface Props {
   panelOpen: boolean;
   togglePanel: () => void;
   showSnapshot: boolean;
-  toggleSnapshot: () => void;
-  onSaveVersion: () => void;
   onCompare: () => void;
 }
 
@@ -99,24 +95,11 @@ export function Toolbar(p: Props) {
           <PanelIcon size={15} />
           {p.openCount > 0 && <span className="count">{p.openCount}</span>}
         </button>
-        {p.version.hasSnapshot && (
-          <button
-            className={`icon-btn ${p.showSnapshot ? 'is-on' : ''}`}
-            title={p.showSnapshot ? 'Show live prototype' : 'Show saved snapshot'}
-            onClick={p.toggleSnapshot}
-          >
-            <ImageIcon />
-          </button>
-        )}
         {p.versions.length > 1 && (
           <button className="icon-btn" title="Compare with previous version" onClick={p.onCompare}>
             <CompareIcon />
           </button>
         )}
-        <button className="btn btn-dark btn-sm" onClick={p.onSaveVersion} style={{ marginLeft: 4 }}>
-          <PlusIcon size={13} />
-          <span className="hide-narrow">Save version</span>
-        </button>
       </div>
 
       {p.sdk && states.length > 0 && (

@@ -189,6 +189,12 @@ export function createRepo(db: OrganiserDB) {
       await db.comments.update(commentId, { replies });
     },
 
+    async deleteReply(commentId: string, replyId: string) {
+      const comment = await db.comments.get(commentId);
+      if (!comment) return;
+      await db.comments.update(commentId, { replies: comment.replies.filter((r) => r.id !== replyId) });
+    },
+
     deleteComment: (id: string) => db.comments.delete(id),
 
     // --- Import / export -------------------------------------------------

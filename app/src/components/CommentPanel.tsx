@@ -2,7 +2,7 @@ import { isDrifting, shortUrl, timeAgo } from '../lib/format';
 import type { Comment, Version } from '../store/types';
 import { BuildBadge } from './BuildStatus';
 import { contextLabel } from './CommentThread';
-import { CloseIcon, ExternalIcon } from './icons';
+import { CloseIcon, ExternalIcon, TrashIcon } from './icons';
 
 export type Filter = 'open' | 'resolved' | 'all';
 
@@ -13,12 +13,24 @@ interface Props {
   setFilter: (f: Filter) => void;
   activeId: string | null;
   onSelect: (comment: Comment) => void;
+  onDeleteComment: (comment: Comment) => void;
   onDeleteVersion: () => void;
   onClose: () => void;
   sdkConnected: boolean;
 }
 
-export function CommentPanel({ version, comments, filter, setFilter, activeId, onSelect, onDeleteVersion, onClose, sdkConnected }: Props) {
+export function CommentPanel({
+  version,
+  comments,
+  filter,
+  setFilter,
+  activeId,
+  onSelect,
+  onDeleteComment,
+  onDeleteVersion,
+  onClose,
+  sdkConnected,
+}: Props) {
   const open = comments.filter((c) => !c.resolved).length;
   const shown = comments.filter((c) => filter === 'all' || (filter === 'open') === !c.resolved);
 
@@ -97,11 +109,33 @@ export function CommentPanel({ version, comments, filter, setFilter, activeId, o
         {shown.map((c) => {
           const context = contextLabel(c);
           return (
-            <button
+            <div
               key={c.id}
+              role="button"
+              tabIndex={0}
               className={`comment-card ${c.id === activeId ? 'is-active' : ''} ${c.resolved ? 'is-resolved' : ''}`}
               onClick={() => onSelect(c)}
+              onKeyDown={(e) => {
+                if (e.target !== e.currentTarget) return;
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelect(c);
+                } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                  onDeleteComment(c);
+                }
+              }}
             >
+              <button
+                className="icon-btn card-action"
+                title="Delete comment"
+                aria-label={`Delete comment ${c.number}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteComment(c);
+                }}
+              >
+                <TrashIcon size={14} />
+              </button>
               <div className="thread-meta">
                 <span className={`num ${c.resolved ? 'is-resolved' : ''}`}>{c.number}</span>
                 <span>{timeAgo(c.createdAt)}</span>
@@ -114,7 +148,7 @@ export function CommentPanel({ version, comments, filter, setFilter, activeId, o
                   {c.replies.length} {c.replies.length === 1 ? 'reply' : 'replies'}
                 </div>
               )}
-            </button>
+            </div>
           );
         })}
       </div>

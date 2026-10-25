@@ -1,149 +1,287 @@
 import { useOrganiser } from '@organiser/sdk/react';
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 
-const css: Record<string, CSSProperties> = {
-  page: { minHeight: '100vh', background: '#f6f5f0', color: '#1b1b19', font: '15px/1.5 Inter, system-ui, sans-serif' },
-  wrap: { maxWidth: 760, margin: '0 auto', padding: '48px 28px 160px' },
-  title: { font: '400 34px/1.15 Georgia, serif', margin: '0 0 18px', letterSpacing: '-0.01em' },
-  banner: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 14,
-    padding: '12px 14px 12px 18px',
-    borderRadius: 999,
-    background: '#ebe9e2',
-    marginBottom: 28,
+// A login page with two variants of the left-hand panel:
+//   Static   – one illustration with a quote
+//   Carousel – slides that advance on a timer
+// and three form states: Empty, Filled, Error.
+
+const SLIDE_MS = 4000;
+
+const SLIDES = [
+  {
+    title: 'Every iteration, in one place.',
+    text: 'Keep the history of what you designed and why, without digging through branches.',
+    art: 'art-dawn',
   },
-  dark: { border: 0, borderRadius: 999, background: '#161615', color: '#fff', padding: '9px 18px', fontWeight: 500 },
-  ghost: { border: 0, background: 'transparent', padding: '9px 12px', fontWeight: 500 },
-  card: { background: '#fff', borderRadius: 16, padding: 22, marginBottom: 16, boxShadow: '0 1px 2px rgba(0,0,0,.05)' },
-  muted: { color: '#8e8d86' },
-};
+  {
+    title: 'Feedback that sticks.',
+    text: 'Pin comments to the exact element, on the exact version, in the exact state.',
+    art: 'art-dusk',
+  },
+  {
+    title: 'Ship the one that works.',
+    text: 'Compare variants side by side and move forward with confidence.',
+    art: 'art-meadow',
+  },
+];
 
-function useHashRoute() {
-  const [route, setRoute] = useState(location.hash || '#/');
-  useEffect(() => {
-    const on = () => setRoute(location.hash || '#/');
-    addEventListener('hashchange', on);
-    return () => removeEventListener('hashchange', on);
-  }, []);
-  return route;
-}
+const FILLED = { email: 'amal@lumen.app', password: 'correct-horse' };
 
-function CrmBanner({ crm, variant }: { crm: string; variant: string | null }) {
-  const [dismissed, setDismissed] = useState(false);
-  useEffect(() => setDismissed(false), [crm, variant]);
-  if (crm === 'None' || dismissed) return null;
-
-  if (variant === 'B') {
-    return (
-      <div id="crm-banner" style={{ ...css.card, borderLeft: '4px solid #9db83a' }}>
-        <strong>Save to {crm}?</strong>
-        <p style={{ ...css.muted, margin: '4px 0 14px' }}>This looks like a sales call. We can file the notes for you.</p>
-        <button style={css.dark}>Save to {crm}</button> <button style={css.ghost} onClick={() => setDismissed(true)}>Dismiss</button>
-      </div>
-    );
-  }
-  if (variant === 'C') {
-    return (
-      <div id="crm-banner" style={{ ...css.muted, fontSize: 13, marginBottom: 24 }}>
-        Detected a customer call · <a href="#/">Save to {crm}</a>
-      </div>
-    );
-  }
+function Art({ variant }: { variant: string }) {
   return (
-    <div id="crm-banner" style={css.banner}>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontWeight: 500 }}>Do you want to save this call to {crm}?</div>
-        <div style={{ ...css.muted, fontSize: 13 }}>We detected this is a sales or customer call.</div>
-      </div>
-      <button style={css.ghost} onClick={() => setDismissed(true)}>
-        Not now
-      </button>
-      <button style={css.dark}>Yes</button>
-    </div>
+    <svg className="art-shapes" viewBox="0 0 400 400" aria-hidden>
+      {variant === 'art-dusk' ? (
+        <>
+          <circle cx="250" cy="150" r="90" />
+          <rect x="70" y="220" width="180" height="110" rx="24" />
+        </>
+      ) : variant === 'art-meadow' ? (
+        <>
+          <path d="M40 320 C 120 200, 220 200, 360 300 L 360 360 L 40 360 Z" />
+          <circle cx="120" cy="130" r="54" />
+        </>
+      ) : (
+        <>
+          <circle cx="200" cy="190" r="120" />
+          <circle cx="290" cy="280" r="46" />
+        </>
+      )}
+    </svg>
   );
 }
 
-function NotesBody({ mode }: { mode: string }) {
-  if (mode === 'During') {
-    return (
-      <div data-organiser-id="notes" style={css.card}>
-        <p style={css.muted}>Write notes…</p>
-        <p>
-          <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 9, background: '#c2412d', marginRight: 8 }} />
-          Recording · 12:43
-        </p>
-      </div>
-    );
-  }
-  if (mode === 'Paused') {
-    return (
-      <div data-organiser-id="notes" style={{ ...css.card, opacity: 0.7 }}>
-        <p>Transcription paused. Resume when you're ready.</p>
-        <button style={css.dark}>Resume</button>
-      </div>
-    );
-  }
-  if (mode === 'Brief') {
-    return (
-      <div data-organiser-id="notes" style={css.card}>
-        <h3 style={{ marginTop: 0 }}>Before the call</h3>
-        <ul>
-          <li>Pineapple raised a Series A last month</li>
-          <li>Last spoke 3 weeks ago about pricing</li>
-          <li>Open question: SSO timeline</li>
-        </ul>
-      </div>
-    );
-  }
+function StaticPanel() {
   return (
-    <div data-organiser-id="notes">
-      {['Summary', 'Decisions', 'Next steps', 'Open questions'].map((h, i) => (
-        <div key={h} style={css.card}>
-          <h3 style={{ marginTop: 0 }}>{h}</h3>
-          <p style={css.muted}>
-            {i % 2 ? 'Pricing agreed in principle; legal review next.' : 'Team aligned on a pilot with 20 seats starting in November.'}
-          </p>
-          <p>Follow up with the champion and share the security pack before Friday.</p>
+    <aside className="panel art-dawn" data-organiser-id="panel">
+      <Art variant="art-dawn" />
+      <div className="panel-copy">
+        <p className="quote">“We stopped losing good ideas the week we started keeping every version.”</p>
+        <p className="quote-by">Priya Shah · Design Lead, Northwind</p>
+      </div>
+    </aside>
+  );
+}
+
+function CarouselPanel() {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => setIndex((i) => (i + 1) % SLIDES.length), SLIDE_MS);
+    return () => clearInterval(timer);
+  }, [index]); // restarting on manual change gives each slide its full time
+
+  return (
+    <aside className="panel carousel" data-organiser-id="panel" aria-roledescription="carousel">
+      {SLIDES.map((slide, i) => (
+        <div key={slide.title} className={`slide ${slide.art} ${i === index ? 'is-active' : ''}`} aria-hidden={i !== index}>
+          <Art variant={slide.art} />
+          <div className="panel-copy">
+            <h2>{slide.title}</h2>
+            <p>{slide.text}</p>
+          </div>
         </div>
       ))}
+      <div className="dots" data-organiser-id="carousel-dots">
+        {SLIDES.map((slide, i) => (
+          <button
+            key={slide.title}
+            className={i === index ? 'is-active' : ''}
+            aria-label={`Show slide ${i + 1}`}
+            onClick={() => setIndex(i)}
+          >
+            {i === index && <span className="progress" key={index} style={{ animationDuration: `${SLIDE_MS}ms` }} />}
+          </button>
+        ))}
+      </div>
+    </aside>
+  );
+}
+
+function LoginForm({ socialFirst }: { socialFirst: boolean }) {
+  const { states, setState } = useOrganiser();
+  const form = states.form ?? 'Empty';
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
+  // Social-first layout: the email form stays tucked away until it's needed.
+  const [showEmail, setShowEmail] = useState(form !== 'Empty');
+  // Set when the form itself moves to Error, so what you typed is kept.
+  const keepInput = useRef(false);
+
+  // The toolbar state drives what's in the form.
+  useEffect(() => {
+    setBusy(false);
+    setShowEmail(form !== 'Empty');
+    if (keepInput.current) {
+      keepInput.current = false;
+      return;
+    }
+    setEmail(form === 'Empty' ? '' : FILLED.email);
+    setPassword(form === 'Empty' ? '' : form === 'Error' ? 'wrong-password' : FILLED.password);
+  }, [form]);
+
+  const isError = form === 'Error';
+
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    // Real interactions feed back into the toolbar state.
+    if (!email || !password || password !== FILLED.password) {
+      keepInput.current = form !== 'Error';
+      setState('form', 'Error');
+      return;
+    }
+    setBusy(true);
+    setTimeout(() => setBusy(false), 1400);
+  }
+
+  const errorAlert = (
+    <div className="alert" role="alert" data-organiser-id="error-alert">
+      Incorrect email or password. Try again or reset your password.
     </div>
+  );
+
+  const emailFields = (
+    <>
+      <label className="field">
+        <span>Email</span>
+        <input
+          type="email"
+          placeholder="you@company.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className={isError ? 'has-error' : ''}
+          autoComplete="email"
+        />
+      </label>
+
+      <label className="field">
+        <span className="row">
+          Password
+          <a href="#" className="link">
+            Forgot password?
+          </a>
+        </span>
+        <span className="password">
+          <input
+            type={showPassword ? 'text' : 'password'}
+            placeholder="Your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={isError ? 'has-error' : ''}
+            autoComplete="current-password"
+          />
+          <button type="button" className="reveal" onClick={() => setShowPassword((v) => !v)}>
+            {showPassword ? 'Hide' : 'Show'}
+          </button>
+        </span>
+        {isError && <span className="field-error">That password doesn’t match this account.</span>}
+      </label>
+
+      <label className="remember">
+        <input type="checkbox" defaultChecked /> Keep me signed in
+      </label>
+    </>
+  );
+
+  const signInLabel = (dark: boolean) =>
+    busy ? <span className={`spinner ${dark ? '' : 'is-dark'}`} aria-label="Signing in" /> : 'Sign in with email';
+
+  return (
+    <main className="form-side">
+      <div className="brand" data-organiser-id="brand">
+        <span className="brand-mark" /> Lumen
+      </div>
+
+      <form className="form" onSubmit={submit} noValidate data-organiser-id="login-form">
+        <h1>Welcome back</h1>
+        <p className="sub">Sign in to pick up where you left off.</p>
+
+        {/* With social sign-in first, the error sits with the email form it belongs to. */}
+        {isError && !socialFirst && errorAlert}
+
+        {socialFirst ? (
+          <>
+            {/* Social sign-in leads; email is the fallback. */}
+            <div className="social" data-organiser-id="social-buttons">
+              <button type="button" className="primary with-icon">
+                <MailIcon /> Continue with Gmail
+              </button>
+              <button type="button" className="secondary with-icon">
+                <GridIcon /> Continue with Microsoft Outlook
+              </button>
+            </div>
+
+            <div className="divider">
+              <span>or</span>
+            </div>
+
+            {showEmail ? (
+              <div className="email-option" data-organiser-id="email-option">
+                {isError && errorAlert}
+                {emailFields}
+                <button className="secondary" disabled={busy || (!email && !password)} data-organiser-id="sign-in">
+                  {signInLabel(false)}
+                </button>
+              </div>
+            ) : (
+              <button type="button" className="text-button" onClick={() => setShowEmail(true)} data-organiser-id="use-email">
+                Sign in with email instead
+              </button>
+            )}
+          </>
+        ) : (
+          <>
+            {emailFields}
+            <button className="primary" disabled={busy || (!email && !password)} data-organiser-id="sign-in">
+              {busy ? <span className="spinner" aria-label="Signing in" /> : 'Sign in'}
+            </button>
+
+            <div className="divider">
+              <span>or</span>
+            </div>
+            <button type="button" className="secondary">
+              Continue with SSO
+            </button>
+          </>
+        )}
+
+        <p className="footer">
+          New to Lumen? <a href="#" className="link">Create an account</a>
+        </p>
+      </form>
+    </main>
+  );
+}
+
+function MailIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <rect x="3" y="5" width="18" height="14" rx="2.5" />
+      <path d="m4 7 8 6 8-6" />
+    </svg>
+  );
+}
+
+function GridIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden>
+      <rect x="2" y="2" width="9.5" height="9.5" rx="1" fill="#f25022" />
+      <rect x="12.5" y="2" width="9.5" height="9.5" rx="1" fill="#7fba00" />
+      <rect x="2" y="12.5" width="9.5" height="9.5" rx="1" fill="#00a4ef" />
+      <rect x="12.5" y="12.5" width="9.5" height="9.5" rx="1" fill="#ffb900" />
+    </svg>
   );
 }
 
 export function App() {
-  const { variant, states, embedded } = useOrganiser();
-  const route = useHashRoute();
-
+  const { variant } = useOrganiser();
+  const carousel = variant === 'Carousel';
   return (
-    <div style={css.page}>
-      <div style={css.wrap}>
-        <nav style={{ display: 'flex', gap: 14, marginBottom: 28, fontSize: 13 }}>
-          <a href="#/">Meeting</a>
-          <a href="#/settings">Settings</a>
-          <span style={{ ...css.muted, marginLeft: 'auto' }}>{embedded ? 'In Organiser' : 'Standalone'}</span>
-        </nav>
-
-        {route === '#/settings' ? (
-          <>
-            <h1 style={css.title}>Settings</h1>
-            <div id="settings-card" style={css.card}>
-              <strong>Integrations</strong>
-              <p style={css.muted}>Connected CRM: {states.crm}</p>
-            </div>
-          </>
-        ) : (
-          <>
-            <h1 style={css.title}>AllFound &lt;&gt; Pineapple</h1>
-            <CrmBanner crm={states.crm} variant={variant} />
-            <NotesBody mode={states.mode} />
-            <p style={{ ...css.muted, textAlign: 'center', fontSize: 13, marginTop: 40 }}>
-              Always get consent when transcribing others
-            </p>
-          </>
-        )}
-      </div>
+    <div className="login">
+      {carousel ? <CarouselPanel /> : <StaticPanel />}
+      <LoginForm socialFirst={carousel} />
     </div>
   );
 }

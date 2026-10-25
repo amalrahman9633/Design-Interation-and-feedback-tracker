@@ -2,16 +2,13 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { init } from '@organiser/sdk';
 import { App } from './App';
+import './styles.css';
 
 // Register variants and states with the Organiser viewer. Outside the viewer
 // this is a no-op and the prototype uses the defaults.
 init({
-  variants: ['A', 'B', 'C'],
-  states: {
-    mode: ['During', 'Brief', 'Paused', 'Generated'],
-    crm: ['None', 'Attio', 'HubSpot', 'Salesforce'],
-  },
-  defaultStates: { crm: 'Attio' },
+  variants: ['Static', 'Carousel'],
+  states: { form: ['Empty', 'Filled', 'Error'] },
 });
 
 createRoot(document.getElementById('root')!).render(

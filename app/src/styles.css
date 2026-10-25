@@ -540,6 +540,17 @@ a {
   display: block;
   width: 100%;
 }
+.banner-action {
+  margin-left: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  pointer-events: auto;
+}
 .stage-banner {
   position: absolute;
   top: 10px;
@@ -595,6 +606,8 @@ a {
 .popover {
   position: absolute;
   z-index: 7;
+  /* The overlay ignores clicks outside comment mode; the popover must not. */
+  pointer-events: auto;
   width: 300px;
   max-height: calc(100% - 16px);
   overflow: auto;
@@ -681,7 +694,9 @@ a {
   word-break: break-all;
 }
 .comment-card {
+  position: relative;
   display: block;
+  cursor: pointer;
   width: 100%;
   text-align: left;
   padding: 12px;
@@ -697,6 +712,43 @@ a {
 .comment-card.is-active {
   background: var(--surface);
   border-color: var(--border-strong);
+}
+.comment-card .thread-meta {
+  padding-right: 28px;
+}
+.card-action {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+}
+.card-action,
+.item-action {
+  opacity: 0;
+  transition: opacity 0.12s, background 0.12s, color 0.12s;
+}
+.card-action:hover,
+.item-action:hover {
+  color: var(--danger) !important;
+}
+.comment-card:hover .card-action,
+.comment-card:focus-within .card-action,
+.comment-card.is-active .card-action,
+.thread-item:hover .item-action,
+.thread-item:focus-within .item-action {
+  opacity: 1;
+}
+@media (hover: none) {
+  .card-action,
+  .item-action {
+    opacity: 1;
+  }
+}
+.item-action {
+  width: 22px;
+  height: 22px;
+  margin-left: auto;
 }
 .comment-card.is-resolved .thread-body {
   color: var(--muted);
