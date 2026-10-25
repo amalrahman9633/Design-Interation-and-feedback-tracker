@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { ArrowRightIcon } from './icons';
 
 // Landing page: what Organiser is, a small animated preview of the viewer,
@@ -7,27 +7,59 @@ import { ArrowRightIcon } from './icons';
 const STEP_MS = 1600;
 // Preview stages: 0 v1 Static · 1 v2 Static · 2 v3 Carousel · 3 v3 Carousel with pins
 const STAGES = 4;
+// Each loop holds the final frame for one extra tick. After two loops the
+// preview rests on that frame, so nothing on the page moves indefinitely.
+const TICKS_PER_LOOP = STAGES + 1;
+const LOOPS = 2;
 
-function usePreviewStage() {
+function usePreviewStage(paused: boolean) {
   const reduced = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const [stage, setStage] = useState(reduced ? STAGES - 1 : 0);
+  const [tick, setTick] = useState(0);
+  const done = reduced || tick >= TICKS_PER_LOOP * LOOPS - 1;
+
   useEffect(() => {
-    if (reduced) return;
-    const timer = setInterval(() => setStage((s) => (s + 1) % (STAGES + 1)), STEP_MS);
-    return () => clearInterval(timer);
-  }, [reduced]);
-  // One extra tick holds the final frame before looping.
-  return Math.min(stage, STAGES - 1);
+    if (done || paused) return;
+    const timer = setTimeout(() => setTick((t) => t + 1), STEP_MS);
+    return () => clearTimeout(timer);
+  }, [tick, paused, done]);
+
+  return done ? STAGES - 1 : Math.min(tick % TICKS_PER_LOOP, STAGES - 1);
+}
+
+/** False while the element is scrolled out of view. */
+function useInView(ref: RefObject<HTMLElement | null>) {
+  const [inView, setInView] = useState(true);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref]);
+  return inView;
 }
 
 function PreviewCard({ onOpen }: { onOpen: () => void }) {
-  const stage = usePreviewStage();
+  const ref = useRef<HTMLButtonElement>(null);
+  const [held, setHeld] = useState(false);
+  const inView = useInView(ref);
+  // Pause while someone is looking closely (hover or keyboard focus) or can't see it.
+  const stage = usePreviewStage(held || !inView);
   const version = Math.min(stage, 2);
   const carousel = stage >= 2;
   const pins = stage >= 3;
 
   return (
-    <button className="preview-card" onClick={onOpen} aria-label="Open the app">
+    <button
+      ref={ref}
+      className="preview-card"
+      onClick={onOpen}
+      onMouseEnter={() => setHeld(true)}
+      onMouseLeave={() => setHeld(false)}
+      onFocus={() => setHeld(true)}
+      onBlur={() => setHeld(false)}
+      aria-label="Open the app"
+    >
       <div className="preview-top">
         {['v1', 'v2', 'v3'].map((v, i) => (
           <span key={v} className={`preview-tab ${i === version ? 'is-active' : ''}`}>
@@ -111,37 +143,44 @@ export function Landing({ onOpenApp, onAddPrototype }: Props) {
         </button>
       </header>
 
-      <section className="landing-hero">
-        <div className="landing-copy">
-          <p className="eyebrow">For designers who build in code</p>
-          <h1 className="landing-title">Every iteration of your prototype, with feedback pinned right where it belongs.</h1>
-          <p className="landing-sub">
-            Keep every version you build in Claude Code or Cursor, flip between variants and states, and leave comments on
-            the exact element.
-          </p>
-          <div className="landing-actions">
-            <button className="btn btn-dark btn-lg" onClick={onOpenApp}>
-              Open the app <ArrowRightIcon size={16} />
-            </button>
-            <button className="text-link" onClick={onAddPrototype}>
-              Add your own prototype
-            </button>
+      <main>
+        <section className="landing-hero">
+          <div className="landing-copy">
+            <p className="eyebrow">For designers who build in code</p>
+            <h1 className="landing-title">Every iteration of your prototype, with feedback pinned right where it belongs.</h1>
+            <p className="landing-sub">
+              Keep every version you build in Claude Code or Cursor, flip between variants and states, and leave comments
+              on the exact element.
+            </p>
+            <div className="landing-actions">
+              <button className="btn btn-dark btn-lg" onClick={onOpenApp}>
+                Open the app <ArrowRightIcon size={16} />
+              </button>
+              <button className="text-link" onClick={onAddPrototype}>
+                Add your own prototype
+              </button>
+            </div>
+            <p className="landing-note">No sign-up. Inside, try the demo: a login page with 2 variants, 3 states and 2 comments.</p>
           </div>
-          <p className="landing-note">No sign-up. Inside, try the demo: a login page with 2 variants, 3 states and 2 comments.</p>
-        </div>
 
-        <PreviewCard onOpen={onOpenApp} />
-      </section>
+          <PreviewCard onOpen={onOpenApp} />
+        </section>
 
-      <ol className="landing-steps">
-        {STEPS.map((step, i) => (
-          <li key={step.title}>
-            <span className="step-num">{i + 1}</span>
-            <h3>{step.title}</h3>
-            <p>{step.text}</p>
-          </li>
-        ))}
-      </ol>
+        <section className="landing-how" aria-labelledby="how-it-works">
+          <h2 id="how-it-works">How it works</h2>
+          <ol className="landing-steps">
+            {STEPS.map((step, i) => (
+              <li key={step.title}>
+                <span className="step-num" aria-hidden>
+                  {i + 1}
+                </span>
+                <h3>{step.title}</h3>
+                <p>{step.text}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+      </main>
     </div>
   );
 }
