@@ -195,7 +195,7 @@ function LoginForm({ socialFirst }: { socialFirst: boolean }) {
       </div>
 
       <form className="form" onSubmit={submit} noValidate data-organiser-id="login-form">
-        <h1>Welcome back</h1>
+        <h1 data-organiser-id="heading">Welcome back</h1>
         <p className="sub">Sign in to pick up where you left off.</p>
 
         {/* With social sign-in first, the error sits with the email form it belongs to. */}

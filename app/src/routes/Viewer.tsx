@@ -114,7 +114,7 @@ export function Viewer() {
     return (
       <div className="page">
         <div className="column">
-          <Link to="/" className="back-link">
+          <Link to="/projects" className="back-link">
             <ChevronLeftIcon size={14} /> All prototypes
           </Link>
           <p className="muted">This version no longer exists.</p>

@@ -25,7 +25,7 @@ export function ProjectPage() {
     return (
       <div className="page">
         <div className="column">
-          <Link to="/" className="back-link">
+          <Link to="/projects" className="back-link">
             <ChevronLeftIcon size={14} /> All prototypes
           </Link>
           <p className="muted">This project no longer exists.</p>
@@ -46,7 +46,7 @@ export function ProjectPage() {
   async function remove() {
     if (!confirm(`Delete “${project!.name}” with all ${versions.length} versions and their comments?`)) return;
     await repo.deleteProject(projectId);
-    navigate('/');
+    navigate('/projects');
   }
 
   async function backfill() {
@@ -72,7 +72,7 @@ export function ProjectPage() {
   return (
     <div className="page">
       <div className="column">
-        <Link to="/" className="back-link">
+        <Link to="/projects" className="back-link">
           <ChevronLeftIcon size={14} /> All prototypes
         </Link>
 

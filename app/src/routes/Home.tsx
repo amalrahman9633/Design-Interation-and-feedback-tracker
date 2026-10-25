@@ -1,15 +1,12 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { BuildBadge } from '../components/BuildStatus';
-import { PlusIcon } from '../components/icons';
+import { ChevronLeftIcon, PlusIcon } from '../components/icons';
 import { VersionDialog, type VersionFormValues } from '../components/VersionDialog';
-import { normaliseUrl } from '../lib/format';
+import { createDemoProject, DEMO_URL } from '../lib/demo';
 import { repo } from '../store/repo';
 import type { Project, Version } from '../store/types';
-
-// Local dev serves the demo on its own port; deployments serve it at /demo/.
-const DEMO_URL = normaliseUrl(location.hostname === 'localhost' ? 'localhost:5174' : `${location.origin}/demo/`);
 
 interface Summary {
   project: Project;
@@ -32,8 +29,13 @@ async function loadSummaries(): Promise<Summary[]> {
 
 export function Home() {
   const summaries = useLiveQuery(loadSummaries);
-  const [dialog, setDialog] = useState<Partial<VersionFormValues> | null>(null);
+  const location = useLocation();
+  // "Add your own prototype" on the landing page lands here with the dialog open.
+  const [dialog, setDialog] = useState<Partial<VersionFormValues> | null>(() =>
+    (location.state as { newProject?: boolean } | null)?.newProject ? {} : null,
+  );
   const [message, setMessage] = useState('');
+  const [openingDemo, setOpeningDemo] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
@@ -41,9 +43,10 @@ export function Home() {
   const archived = summaries?.filter((s) => s.project.archived) ?? [];
   const hasDemo = summaries?.some((s) => s.latest?.url === DEMO_URL) ?? true;
 
-  /** One click: create the demo project and open it in the viewer. */
+  /** One click: create the demo project (with sample comments) and open it in the viewer. */
   async function tryDemo() {
-    const { version } = await repo.createProject({ name: 'Demo prototype', url: DEMO_URL, note: 'First pass' });
+    setOpeningDemo(true);
+    const version = await createDemoProject();
     navigate(`/v/${version.id}`);
   }
 
@@ -77,17 +80,33 @@ export function Home() {
     }
   }
 
+  const fileInput = (
+    <input
+      ref={fileRef}
+      type="file"
+      accept="application/json,.json"
+      hidden
+      onChange={(e) => {
+        const file = e.target.files?.[0];
+        if (file) void importFile(file);
+        e.target.value = '';
+      }}
+    />
+  );
+  const projectDialog = dialog && (
+    <VersionDialog mode="project" initial={dialog} onSubmit={create} onClose={() => setDialog(null)} />
+  );
+
+  if (!summaries) return null;
+
   return (
     <div className="page">
       <div className="column">
+        <Link to="/" className="back-link">
+          <ChevronLeftIcon size={14} /> Organiser
+        </Link>
         <h1 className="page-title">Prototypes</h1>
         <p className="page-sub">Every iteration, and the feedback on it, in one place.</p>
-
-        {summaries && summaries.length === 0 && (
-          <p className="muted" style={{ textAlign: 'center', margin: '-16px 0 24px' }}>
-            See how it works with a demo, or add something you built in Claude Code or Cursor.
-          </p>
-        )}
 
         <div className="stack">
           {active.map((s) => (
@@ -104,7 +123,7 @@ export function Home() {
 
         <div className="stack home-actions">
           {!hasDemo && (
-            <button className="pill is-primary" onClick={tryDemo}>
+            <button className="pill is-primary" onClick={tryDemo} disabled={openingDemo}>
               Try the demo prototype
             </button>
           )}
@@ -141,17 +160,7 @@ export function Home() {
           <button className="btn btn-ghost btn-sm" onClick={() => fileRef.current?.click()}>
             Import
           </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json,.json"
-            hidden
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void importFile(file);
-              e.target.value = '';
-            }}
-          />
+          {fileInput}
         </div>
         {message && (
           <p className="muted" style={{ textAlign: 'center', fontSize: 13 }}>
@@ -160,7 +169,7 @@ export function Home() {
         )}
       </div>
 
-      {dialog && <VersionDialog mode="project" initial={dialog} onSubmit={create} onClose={() => setDialog(null)} />}
+      {projectDialog}
     </div>
   );
 }
