@@ -172,6 +172,30 @@ a {
   color: var(--muted);
   font-weight: 400;
 }
+.pill.is-primary {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--on-ink);
+}
+.pill.is-primary:hover {
+  background: #2c2c2a;
+  border-color: #2c2c2a;
+}
+.pill.is-secondary {
+  font-weight: 500;
+}
+.pill:disabled {
+  color: var(--faint);
+  background: transparent;
+  cursor: default;
+  box-shadow: none;
+}
+.pill:disabled:hover {
+  border-color: var(--border);
+}
+.home-actions {
+  margin-top: 10px;
+}
 .pill.is-selected {
   border-color: var(--ink);
   background: var(--surface);

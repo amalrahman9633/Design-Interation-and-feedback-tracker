@@ -3,13 +3,13 @@ import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BuildBadge } from '../components/BuildStatus';
 import { PlusIcon } from '../components/icons';
-import { ConnectRepoDialog } from '../components/ConnectRepoDialog';
 import { VersionDialog, type VersionFormValues } from '../components/VersionDialog';
+import { normaliseUrl } from '../lib/format';
 import { repo } from '../store/repo';
 import type { Project, Version } from '../store/types';
 
 // Local dev serves the demo on its own port; deployments serve it at /demo/.
-const DEMO_URL = location.hostname === 'localhost' ? 'localhost:5174' : `${location.origin}/demo/`;
+const DEMO_URL = normaliseUrl(location.hostname === 'localhost' ? 'localhost:5174' : `${location.origin}/demo/`);
 
 interface Summary {
   project: Project;
@@ -33,13 +33,19 @@ async function loadSummaries(): Promise<Summary[]> {
 export function Home() {
   const summaries = useLiveQuery(loadSummaries);
   const [dialog, setDialog] = useState<Partial<VersionFormValues> | null>(null);
-  const [connecting, setConnecting] = useState(false);
   const [message, setMessage] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   const active = summaries?.filter((s) => !s.project.archived) ?? [];
   const archived = summaries?.filter((s) => s.project.archived) ?? [];
+  const hasDemo = summaries?.some((s) => s.latest?.url === DEMO_URL) ?? true;
+
+  /** One click: create the demo project and open it in the viewer. */
+  async function tryDemo() {
+    const { version } = await repo.createProject({ name: 'Demo prototype', url: DEMO_URL, note: 'First pass' });
+    navigate(`/v/${version.id}`);
+  }
 
   async function create(values: VersionFormValues) {
     const { project } = await repo.createProject({
@@ -78,19 +84,9 @@ export function Home() {
         <p className="page-sub">Every iteration, and the feedback on it, in one place.</p>
 
         {summaries && summaries.length === 0 && (
-          <div className="stack" style={{ marginBottom: 24 }}>
-            <p className="muted" style={{ textAlign: 'center', margin: '0 0 8px' }}>
-              Paste the URL of something you built in Claude Code or Cursor to start its history.
-            </p>
-            <button
-              className="pill is-dashed"
-              onClick={() =>
-                setDialog({ projectName: 'Demo prototype', url: DEMO_URL, note: 'First pass' })
-              }
-            >
-              Try it with the demo prototype
-            </button>
-          </div>
+          <p className="muted" style={{ textAlign: 'center', margin: '-16px 0 24px' }}>
+            See how it works with a demo, or add something you built in Claude Code or Cursor.
+          </p>
         )}
 
         <div className="stack">
@@ -104,11 +100,24 @@ export function Home() {
               </span>
             </Link>
           ))}
-          <button className="pill is-dashed" onClick={() => setDialog({})}>
+        </div>
+
+        <div className="stack home-actions">
+          {!hasDemo && (
+            <button className="pill is-primary" onClick={tryDemo}>
+              Try the demo prototype
+            </button>
+          )}
+          <button className="pill is-secondary" onClick={() => setDialog({})}>
             <PlusIcon size={14} style={{ marginRight: 6 }} /> New project from a URL
           </button>
-          <button className="pill is-dashed" onClick={() => setConnecting(true)}>
-            <PlusIcon size={14} style={{ marginRight: 6 }} /> Connect a git repo
+          <button className="pill is-secondary" disabled aria-describedby="git-soon">
+            Connect a git repo
+            <span className="pill-meta">
+              <span className="badge" id="git-soon">
+                Coming soon
+              </span>
+            </span>
           </button>
         </div>
 
@@ -151,7 +160,6 @@ export function Home() {
         )}
       </div>
 
-      {connecting && <ConnectRepoDialog onClose={() => setConnecting(false)} />}
       {dialog && <VersionDialog mode="project" initial={dialog} onSubmit={create} onClose={() => setDialog(null)} />}
     </div>
   );
